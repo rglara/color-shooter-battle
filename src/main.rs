@@ -1,3 +1,40 @@
+extern crate glutin_window;
+extern crate opengl_graphics;
+extern crate piston;
+
+use glutin_window::GlutinWindow as Window;
+use opengl_graphics::{GlGraphics, OpenGL};
+use piston::event_loop::{EventSettings, Events};
+use piston::input::{RenderEvent, UpdateEvent};
+use piston::window::WindowSettings;
+
+mod application;
+
+use application::App;
+
 fn main() {
-    println!("Hello, world!");
+    let opengl = OpenGL::V3_2;
+
+    let mut window: Window = WindowSettings::new("Color Battle", [1660, 960])
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
+
+    // Create a new game and run it.
+    let mut app = App {
+        gl: GlGraphics::new(opengl),
+        rotation: 0.0,
+    };
+
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(&mut window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
+        }
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
+        }
+    }
 }
