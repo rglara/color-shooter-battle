@@ -13,6 +13,7 @@ const BORDER_SIZE: i32 = 20;
 const SIDE_WIDTH: i32 = 300;
 const CELL_WIDTH: i32 = 10;
 const CELL_EDGES: i32 = 45;
+const CANNON_RADIUS: i32 = 40;
 
 fn calc_index(x: i32, y: i32) -> usize {
     return ((x * CELL_EDGES * 2) + y) as usize;
@@ -43,11 +44,74 @@ impl Grid {
     }
 }
 
+pub struct Cannon {
+    pub color: [f32; 4],
+    pub x: f64,
+    pub y: f64,
+    pub min_angle: f64,
+    pub max_angle: f64,
+}
+
+impl Cannon {
+    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
+        let rect = [
+            self.x - (CANNON_RADIUS / 2) as f64,
+            self.y - (CANNON_RADIUS / 2) as f64,
+            CANNON_RADIUS as f64,
+            CANNON_RADIUS as f64,
+        ];
+        graphics::ellipse(self.color, rect, c.transform, gl);
+    }
+}
+
 pub struct App {
-    pub gl: GlGraphics, // OpenGL drawing backend.
+    gl: GlGraphics,
+    grid: Grid,
+    cannons: [Cannon; 4],
 }
 
 impl App {
+    pub fn new(g: GlGraphics) -> App {
+        App {
+            gl: g,
+            grid: Grid::new(),
+            cannons: [
+                Cannon {
+                    color: COLOR_PLAYER_1NW,
+                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CANNON_RADIUS * 3 / 4)) as f64,
+                    y: (BORDER_SIZE + (CANNON_RADIUS * 3 / 4)) as f64,
+                    min_angle: 0.0,
+                    max_angle: 90.0,
+                },
+                Cannon {
+                    color: COLOR_PLAYER_2NE,
+                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CELL_WIDTH * CELL_EDGES * 2)
+                        - (CANNON_RADIUS * 3 / 4)) as f64,
+                    y: (BORDER_SIZE + (CANNON_RADIUS * 3 / 4)) as f64,
+                    min_angle: 0.0,
+                    max_angle: 90.0,
+                },
+                Cannon {
+                    color: COLOR_PLAYER_3SW,
+                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CANNON_RADIUS * 3 / 4)) as f64,
+                    y: (BORDER_SIZE + (CELL_WIDTH * CELL_EDGES * 2) - (CANNON_RADIUS * 3 / 4))
+                        as f64,
+                    min_angle: 0.0,
+                    max_angle: 90.0,
+                },
+                Cannon {
+                    color: COLOR_PLAYER_4SE,
+                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CELL_WIDTH * CELL_EDGES * 2)
+                        - (CANNON_RADIUS * 3 / 4)) as f64,
+                    y: (BORDER_SIZE + (CELL_WIDTH * CELL_EDGES * 2) - (CANNON_RADIUS * 3 / 4))
+                        as f64,
+                    min_angle: 0.0,
+                    max_angle: 90.0,
+                },
+            ],
+        }
+    }
+
     pub const fn get_width() -> i32 {
         let grid_size = CELL_WIDTH * CELL_EDGES * 2;
         return grid_size + (4 * BORDER_SIZE) + (2 * SIDE_WIDTH);
@@ -57,7 +121,7 @@ impl App {
         return grid_size + (2 * BORDER_SIZE);
     }
 
-    pub fn render(&mut self, args: &RenderArgs, grid: &Grid) {
+    pub fn render(&mut self, args: &RenderArgs) {
         self.gl.draw(args.viewport(), |c, gl| {
             fn draw_full_column(
                 c: &graphics::Context,
@@ -104,7 +168,7 @@ impl App {
                         CELL_WIDTH as f64,
                         CELL_WIDTH as f64,
                     ];
-                    let color = match grid.cells[calc_index(i, j)] {
+                    let color = match self.grid.cells[calc_index(i, j)] {
                         1 => COLOR_PLAYER_1NW,
                         2 => COLOR_PLAYER_2NE,
                         3 => COLOR_PLAYER_3SW,
@@ -128,6 +192,10 @@ impl App {
             current_x = draw_full_column(&c, gl, current_x, window_height);
             draw_full_column(&c, gl, current_x + SIDE_WIDTH, window_height);
             draw_full_row(&c, gl, grid_bottom, window_width);
+
+            for cannon in &mut self.cannons {
+                cannon.draw(&c, gl);
+            }
         });
     }
 

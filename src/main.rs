@@ -10,7 +10,7 @@ use piston::window::WindowSettings;
 
 mod application;
 
-use application::{App, Grid};
+use application::App;
 
 fn main() {
     let opengl = OpenGL::V3_2;
@@ -25,16 +25,12 @@ fn main() {
     .build()
     .unwrap();
 
-    let mut app = App {
-        gl: GlGraphics::new(opengl),
-    };
-
-    let grid = Grid::new();
+    let mut app = App::new(GlGraphics::new(opengl));
 
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
-            app.render(&args, &grid);
+            app.render(&args);
         }
 
         if let Some(args) = e.update_args() {
