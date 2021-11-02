@@ -4,11 +4,44 @@ use piston::input::{RenderArgs, UpdateArgs};
 const COLOR_BACKGROUND: [f32; 4] = [0.0, 0.0, 0.0, 1.0]; // black
 const COLOR_FRAME: [f32; 4] = [0.2, 0.2, 0.2, 1.0]; // gray
 const COLOR_GRID: [f32; 4] = [0.1, 0.1, 0.1, 1.0]; // dark gray
+const COLOR_PLAYER_1NW: [f32; 4] = [1.0, 0.0, 0.0, 1.0]; // red
+const COLOR_PLAYER_2NE: [f32; 4] = [0.0, 1.0, 0.0, 1.0]; // green
+const COLOR_PLAYER_3SW: [f32; 4] = [0.0, 0.0, 1.0, 1.0]; // blue
+const COLOR_PLAYER_4SE: [f32; 4] = [1.0, 1.0, 0.0, 1.0]; // yellow
 
 const BORDER_SIZE: i32 = 20;
 const SIDE_WIDTH: i32 = 300;
 const CELL_WIDTH: i32 = 10;
 const CELL_EDGES: i32 = 45;
+
+fn calc_index(x: i32, y: i32) -> usize {
+    return ((x * CELL_EDGES * 2) + y) as usize;
+}
+
+pub struct Grid {
+    pub cells: [i8; (CELL_EDGES * CELL_EDGES * 4) as usize],
+}
+
+impl Grid {
+    pub fn new() -> Grid {
+        let mut c = [0; (CELL_EDGES * CELL_EDGES * 4) as usize];
+        for y in 0..(CELL_EDGES * 2) {
+            for x in 0..(CELL_EDGES * 2) {
+                let index = calc_index(x, y);
+                if x < CELL_EDGES && y < CELL_EDGES {
+                    c[index] = 1;
+                } else if x >= CELL_EDGES && y < CELL_EDGES {
+                    c[index] = 2;
+                } else if x < CELL_EDGES && y >= CELL_EDGES {
+                    c[index] = 3;
+                } else if x >= CELL_EDGES && y >= CELL_EDGES {
+                    c[index] = 4;
+                }
+            }
+        }
+        Grid { cells: c }
+    }
+}
 
 pub struct App {
     pub gl: GlGraphics, // OpenGL drawing backend.
@@ -24,7 +57,7 @@ impl App {
         return grid_size + (2 * BORDER_SIZE);
     }
 
-    pub fn render(&mut self, args: &RenderArgs) {
+    pub fn render(&mut self, args: &RenderArgs, grid: &Grid) {
         self.gl.draw(args.viewport(), |c, gl| {
             fn draw_full_column(
                 c: &graphics::Context,
@@ -56,22 +89,40 @@ impl App {
 
             let mut current_x = draw_full_column(&c, gl, 0, window_height);
             current_x = draw_full_column(&c, gl, current_x + SIDE_WIDTH, window_height);
-            let current_y = draw_full_row(&c, gl, 0, window_width);
-
             let grid_left = current_x;
             let grid_right = grid_left + (CELL_WIDTH * CELL_EDGES * 2);
-            let grid_top = current_y;
+            let grid_top = draw_full_row(&c, gl, 0, window_width);
             let grid_bottom = grid_top + (CELL_WIDTH * CELL_EDGES * 2);
-            for _i in 0..(CELL_EDGES * 2) {
+            for i in 0..(CELL_EDGES * 2) {
                 let x = CELL_WIDTH + current_x;
+                let mut current_y = grid_top;
+                for j in 0..(CELL_EDGES * 2) {
+                    let y = CELL_WIDTH + current_y;
+                    let rect = [
+                        current_x as f64,
+                        current_y as f64,
+                        CELL_WIDTH as f64,
+                        CELL_WIDTH as f64,
+                    ];
+                    let color = match grid.cells[calc_index(i, j)] {
+                        1 => COLOR_PLAYER_1NW,
+                        2 => COLOR_PLAYER_2NE,
+                        3 => COLOR_PLAYER_3SW,
+                        4 => COLOR_PLAYER_4SE,
+                        _ => COLOR_BACKGROUND,
+                    };
+                    graphics::rectangle(color, rect, c.transform, gl);
+                    current_y = y;
+                }
                 let xline = [x as f64, grid_top as f64, x as f64, grid_bottom as f64];
                 graphics::line(COLOR_GRID, 1.0, xline, c.transform, gl);
-                for j in 0..(CELL_EDGES * 2) {
-                    let y = CELL_WIDTH + ((j + 1) * CELL_WIDTH);
-                    let yline = [grid_left as f64, y as f64, grid_right as f64, y as f64];
-                    graphics::line(COLOR_GRID, 1.0, yline, c.transform, gl);
-                }
                 current_x = x;
+            }
+
+            for y in 0..(CELL_EDGES * 2) {
+                let axis = (grid_top + (y * CELL_WIDTH)) as f64;
+                let yline = [grid_left as f64, axis, grid_right as f64, axis];
+                graphics::line(COLOR_GRID, 1.0, yline, c.transform, gl);
             }
 
             current_x = draw_full_column(&c, gl, current_x, window_height);
