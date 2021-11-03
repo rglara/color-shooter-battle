@@ -1,19 +1,15 @@
+use graphics::Transformed;
 use opengl_graphics::GlGraphics;
 use piston::input::{RenderArgs, UpdateArgs};
 
 const COLOR_BACKGROUND: [f32; 4] = [0.0, 0.0, 0.0, 1.0]; // black
 const COLOR_FRAME: [f32; 4] = [0.2, 0.2, 0.2, 1.0]; // gray
 const COLOR_GRID: [f32; 4] = [0.1, 0.1, 0.1, 1.0]; // dark gray
-const COLOR_PLAYER_1NW: [f32; 4] = [1.0, 0.0, 0.0, 1.0]; // red
-const COLOR_PLAYER_2NE: [f32; 4] = [0.0, 1.0, 0.0, 1.0]; // green
-const COLOR_PLAYER_3SW: [f32; 4] = [0.0, 0.0, 1.0, 1.0]; // blue
-const COLOR_PLAYER_4SE: [f32; 4] = [1.0, 1.0, 0.0, 1.0]; // yellow
 
 const BORDER_SIZE: i32 = 20;
 const SIDE_WIDTH: i32 = 300;
 const CELL_WIDTH: i32 = 10;
 const CELL_EDGES: i32 = 45;
-const CANNON_RADIUS: i32 = 40;
 
 fn calc_index(x: i32, y: i32) -> usize {
     return ((x * CELL_EDGES * 2) + y) as usize;
@@ -45,22 +41,92 @@ impl Grid {
 }
 
 pub struct Cannon {
-    pub color: [f32; 4],
-    pub x: f64,
-    pub y: f64,
-    pub min_angle: f64,
-    pub max_angle: f64,
+    color: [f32; 4],
+    x: f64,
+    y: f64,
+    min_angle_deg: f64,
+    max_angle_deg: f64,
+    current_angle_deg: f64,
+    current_barrel_move: f64,
 }
 
 impl Cannon {
+    const SPEED: f64 = 0.4;
+    const SWEEP: f64 = 60.0;
+    const RADIUS: i32 = 40;
+
+    pub fn new(hex: &str, is_left: bool, is_top: bool) -> Cannon {
+        let mut h = 2 * BORDER_SIZE + SIDE_WIDTH;
+        if is_left {
+            h += Cannon::RADIUS * 3 / 4;
+        } else {
+            h += (CELL_WIDTH * CELL_EDGES * 2) - (Cannon::RADIUS * 3 / 4);
+        }
+        let mut v = BORDER_SIZE;
+        if is_top {
+            v += Cannon::RADIUS * 3 / 4;
+        } else {
+            v += (CELL_WIDTH * CELL_EDGES * 2) - (Cannon::RADIUS * 3 / 4);
+        }
+        let neutral: f64;
+        if is_left {
+            if is_top {
+                neutral = 45.0;
+            } else {
+                neutral = 315.0;
+            }
+        } else {
+            if is_top {
+                neutral = 135.0;
+            } else {
+                neutral = 225.0;
+            }
+        }
+        let min = neutral - Cannon::SWEEP;
+        let max = neutral + Cannon::SWEEP;
+
+        Cannon {
+            color: graphics::color::hex(hex),
+            x: h as f64,
+            y: v as f64,
+            min_angle_deg: min,
+            max_angle_deg: max,
+            current_angle_deg: min,
+            current_barrel_move: Cannon::SPEED,
+        }
+    }
+
+    pub fn turn(&mut self) {
+        self.current_angle_deg += self.current_barrel_move;
+        if self.current_angle_deg >= self.max_angle_deg {
+            self.current_angle_deg = self.max_angle_deg;
+            self.current_barrel_move = -Cannon::SPEED;
+        } else if self.current_angle_deg <= self.min_angle_deg {
+            self.current_angle_deg = self.min_angle_deg;
+            self.current_barrel_move = Cannon::SPEED;
+        }
+    }
+
     pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
-        let rect = [
-            self.x - (CANNON_RADIUS / 2) as f64,
-            self.y - (CANNON_RADIUS / 2) as f64,
-            CANNON_RADIUS as f64,
-            CANNON_RADIUS as f64,
+        let base = [
+            self.x - (Cannon::RADIUS / 2) as f64,
+            self.y - (Cannon::RADIUS / 2) as f64,
+            Cannon::RADIUS as f64,
+            Cannon::RADIUS as f64,
         ];
-        graphics::ellipse(self.color, rect, c.transform, gl);
+        graphics::ellipse(self.color, base, c.transform, gl);
+        let barrel = [
+            0.0,
+            0.0,
+            (Cannon::RADIUS * 2) as f64,
+            (Cannon::RADIUS / 2) as f64,
+        ];
+        let barrel_transform = c
+            .transform
+            .trans(self.x, self.y)
+            .rot_deg(self.current_angle_deg)
+            .trans((Cannon::RADIUS / -4) as f64, (Cannon::RADIUS / -4) as f64);
+        graphics::rectangle(self.color, barrel, barrel_transform, gl)
     }
 }
 
@@ -76,38 +142,10 @@ impl App {
             gl: g,
             grid: Grid::new(),
             cannons: [
-                Cannon {
-                    color: COLOR_PLAYER_1NW,
-                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CANNON_RADIUS * 3 / 4)) as f64,
-                    y: (BORDER_SIZE + (CANNON_RADIUS * 3 / 4)) as f64,
-                    min_angle: 0.0,
-                    max_angle: 90.0,
-                },
-                Cannon {
-                    color: COLOR_PLAYER_2NE,
-                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CELL_WIDTH * CELL_EDGES * 2)
-                        - (CANNON_RADIUS * 3 / 4)) as f64,
-                    y: (BORDER_SIZE + (CANNON_RADIUS * 3 / 4)) as f64,
-                    min_angle: 0.0,
-                    max_angle: 90.0,
-                },
-                Cannon {
-                    color: COLOR_PLAYER_3SW,
-                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CANNON_RADIUS * 3 / 4)) as f64,
-                    y: (BORDER_SIZE + (CELL_WIDTH * CELL_EDGES * 2) - (CANNON_RADIUS * 3 / 4))
-                        as f64,
-                    min_angle: 0.0,
-                    max_angle: 90.0,
-                },
-                Cannon {
-                    color: COLOR_PLAYER_4SE,
-                    x: (2 * BORDER_SIZE + SIDE_WIDTH + (CELL_WIDTH * CELL_EDGES * 2)
-                        - (CANNON_RADIUS * 3 / 4)) as f64,
-                    y: (BORDER_SIZE + (CELL_WIDTH * CELL_EDGES * 2) - (CANNON_RADIUS * 3 / 4))
-                        as f64,
-                    min_angle: 0.0,
-                    max_angle: 90.0,
-                },
+                Cannon::new("990000", true, true),
+                Cannon::new("38761D", false, true),
+                Cannon::new("45818E", true, false),
+                Cannon::new("BF9000", false, false),
             ],
         }
     }
@@ -169,10 +207,10 @@ impl App {
                         CELL_WIDTH as f64,
                     ];
                     let color = match self.grid.cells[calc_index(i, j)] {
-                        1 => COLOR_PLAYER_1NW,
-                        2 => COLOR_PLAYER_2NE,
-                        3 => COLOR_PLAYER_3SW,
-                        4 => COLOR_PLAYER_4SE,
+                        1 => graphics::color::hex("FF0000"),
+                        2 => graphics::color::hex("00FF00"),
+                        3 => graphics::color::hex("0000FF"),
+                        4 => graphics::color::hex("FFFF00"),
                         _ => COLOR_BACKGROUND,
                     };
                     graphics::rectangle(color, rect, c.transform, gl);
@@ -199,5 +237,9 @@ impl App {
         });
     }
 
-    pub fn update(&mut self, _args: &UpdateArgs) {}
+    pub fn update(&mut self, _args: &UpdateArgs) {
+        for cannon in &mut self.cannons {
+            cannon.turn();
+        }
+    }
 }
