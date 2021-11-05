@@ -1,6 +1,6 @@
-use graphics::Transformed;
+use graphics::{Radians, Transformed};
 use opengl_graphics::GlGraphics;
-use piston::input::{RenderArgs, UpdateArgs};
+use piston::{Button, Key, RenderArgs, UpdateArgs};
 
 const COLOR_BACKGROUND: [f32; 4] = [0.0, 0.0, 0.0, 1.0]; // black
 const COLOR_FRAME: [f32; 4] = [0.2, 0.2, 0.2, 1.0]; // gray
@@ -40,7 +40,45 @@ impl Grid {
     }
 }
 
+pub struct Bullet {
+    color: [f32; 4],
+    position: [f64; 2],
+    angle: f64,
+    speed: f64,
+}
+
+impl Bullet {
+    const RADIUS: f64 = 10.0;
+    const SPEED: f64 = 0.5;
+
+    pub fn new(color: [f32; 4], x: f64, y: f64, angle: f64) -> Bullet {
+        Bullet {
+            color: color,
+            position: [x, y],
+            angle: angle,
+            speed: Bullet::SPEED,
+        }
+    }
+
+    pub fn step(&mut self) {
+        let x = self.speed * self.angle.deg_to_rad().cos();
+        let y = self.speed * self.angle.deg_to_rad().sin();
+        self.position = [self.position[0] + x, self.position[1] + y];
+    }
+
+    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
+        let rect = [
+            self.position[0],
+            self.position[1],
+            Bullet::RADIUS,
+            Bullet::RADIUS,
+        ];
+        graphics::ellipse(self.color, rect, c.transform, gl);
+    }
+}
+
 pub struct Cannon {
+    id: i32,
     color: [f32; 4],
     x: f64,
     y: f64,
@@ -55,7 +93,7 @@ impl Cannon {
     const SWEEP: f64 = 60.0;
     const RADIUS: i32 = 40;
 
-    pub fn new(hex: &str, is_left: bool, is_top: bool) -> Cannon {
+    pub fn new(id: i32, hex: &str, is_left: bool, is_top: bool) -> Cannon {
         let mut h = 2 * BORDER_SIZE + SIDE_WIDTH;
         if is_left {
             h += Cannon::RADIUS * 3 / 4;
@@ -86,6 +124,7 @@ impl Cannon {
         let max = neutral + Cannon::SWEEP;
 
         Cannon {
+            id: id,
             color: graphics::color::hex(hex),
             x: h as f64,
             y: v as f64,
@@ -118,15 +157,19 @@ impl Cannon {
         let barrel = [
             0.0,
             0.0,
-            (Cannon::RADIUS * 2) as f64,
-            (Cannon::RADIUS / 2) as f64,
+            (3 * Cannon::RADIUS / 4) as f64,
+            (Cannon::RADIUS / 3) as f64,
         ];
         let barrel_transform = c
             .transform
             .trans(self.x, self.y)
             .rot_deg(self.current_angle_deg)
-            .trans((Cannon::RADIUS / -4) as f64, (Cannon::RADIUS / -4) as f64);
-        graphics::rectangle(self.color, barrel, barrel_transform, gl)
+            .trans(0.0, (Cannon::RADIUS / -8) as f64);
+        graphics::rectangle(self.color, barrel, barrel_transform, gl);
+    }
+
+    pub fn shoot(&mut self) -> Bullet {
+        Bullet::new(self.color, self.x, self.y, self.current_angle_deg)
     }
 }
 
@@ -134,6 +177,7 @@ pub struct App {
     gl: GlGraphics,
     grid: Grid,
     cannons: [Cannon; 4],
+    bullets: Vec<Bullet>,
 }
 
 impl App {
@@ -142,11 +186,12 @@ impl App {
             gl: g,
             grid: Grid::new(),
             cannons: [
-                Cannon::new("990000", true, true),
-                Cannon::new("38761D", false, true),
-                Cannon::new("45818E", true, false),
-                Cannon::new("BF9000", false, false),
+                Cannon::new(1, "990000", true, true),
+                Cannon::new(2, "38761D", false, true),
+                Cannon::new(3, "45818E", true, false),
+                Cannon::new(4, "BF9000", false, false),
             ],
+            bullets: Vec::new(),
         }
     }
 
@@ -234,12 +279,48 @@ impl App {
             for cannon in &mut self.cannons {
                 cannon.draw(&c, gl);
             }
+            for bullet in &mut self.bullets {
+                bullet.draw(&c, gl);
+            }
         });
     }
 
     pub fn update(&mut self, _args: &UpdateArgs) {
         for cannon in &mut self.cannons {
             cannon.turn();
+        }
+        for bullet in &mut self.bullets {
+            bullet.step();
+        }
+    }
+
+    pub fn handle_button(&mut self, button: &Button) {
+        match button {
+            Button::Keyboard(key) => match key {
+                Key::D1 => {
+                    self.fire_cannon(1);
+                }
+                Key::D2 => {
+                    self.fire_cannon(2);
+                }
+                Key::D3 => {
+                    self.fire_cannon(3);
+                }
+                Key::D4 => {
+                    self.fire_cannon(4);
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    fn fire_cannon(&mut self, cannon_id: i32) {
+        for cannon in &mut self.cannons {
+            if cannon.id == cannon_id {
+                let bullet = cannon.shoot();
+                self.bullets.push(bullet);
+            }
         }
     }
 }

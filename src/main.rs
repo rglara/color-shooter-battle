@@ -4,9 +4,8 @@ extern crate piston;
 
 use glutin_window::GlutinWindow;
 use opengl_graphics::{GlGraphics, OpenGL};
-use piston::event_loop::{EventSettings, Events};
-use piston::input::{RenderEvent, UpdateEvent};
 use piston::window::WindowSettings;
+use piston::{EventSettings, Events, PressEvent, RenderEvent, UpdateEvent};
 
 mod application;
 
@@ -35,6 +34,10 @@ fn main() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+        }
+
+        if let Some(button) = e.press_args() {
+            app.handle_button(&button);
         }
     }
 }
