@@ -45,11 +45,12 @@ pub struct Bullet {
     position: [f64; 2],
     angle: f64,
     speed: f64,
+    is_alive: bool,
 }
 
 impl Bullet {
     const RADIUS: f64 = 10.0;
-    const SPEED: f64 = 0.5;
+    const SPEED: f64 = 1.0;
 
     pub fn new(color: [f32; 4], x: f64, y: f64, angle: f64) -> Bullet {
         Bullet {
@@ -57,13 +58,15 @@ impl Bullet {
             position: [x, y],
             angle: angle,
             speed: Bullet::SPEED,
+            is_alive: true,
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self, grid_rect: [f64; 4]) {
         let x = self.speed * self.angle.deg_to_rad().cos();
         let y = self.speed * self.angle.deg_to_rad().sin();
         self.position = [self.position[0] + x, self.position[1] + y];
+        self.check_collisions(grid_rect);
     }
 
     pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
@@ -74,6 +77,15 @@ impl Bullet {
             Bullet::RADIUS,
         ];
         graphics::ellipse(self.color, rect, c.transform, gl);
+    }
+
+    fn check_collisions(&mut self, grid_rect: [f64; 4]) {
+        if (self.position[0] < grid_rect[0]) || ((self.position[0] + Bullet::RADIUS) > (grid_rect[0] + grid_rect[2])) {
+            self.angle = 180.0 - self.angle;
+        }
+        if (self.position[1] < grid_rect[1]) || ((self.position[1] + Bullet::RADIUS) > (grid_rect[1] + grid_rect[3])) {
+            self.angle = 360.0 - self.angle;
+        }
     }
 }
 
@@ -178,6 +190,7 @@ pub struct App {
     grid: Grid,
     cannons: [Cannon; 4],
     bullets: Vec<Bullet>,
+    field_rect: [f64; 4],
 }
 
 impl App {
@@ -192,6 +205,7 @@ impl App {
                 Cannon::new(4, "BF9000", false, false),
             ],
             bullets: Vec::new(),
+            field_rect: [0.0, 0.0, 10.0, 10.0],
         }
     }
 
@@ -240,6 +254,12 @@ impl App {
             let grid_right = grid_left + (CELL_WIDTH * CELL_EDGES * 2);
             let grid_top = draw_full_row(&c, gl, 0, window_width);
             let grid_bottom = grid_top + (CELL_WIDTH * CELL_EDGES * 2);
+            self.field_rect = [
+                grid_left as f64,
+                grid_top as f64,
+                (grid_right - grid_left) as f64,
+                (grid_bottom - grid_top) as f64,
+            ];
             for i in 0..(CELL_EDGES * 2) {
                 let x = CELL_WIDTH + current_x;
                 let mut current_y = grid_top;
@@ -290,8 +310,9 @@ impl App {
             cannon.turn();
         }
         for bullet in &mut self.bullets {
-            bullet.step();
+            bullet.step(self.field_rect);
         }
+        self.bullets.retain(|b| b.is_alive);
     }
 
     pub fn handle_button(&mut self, button: &Button) {
