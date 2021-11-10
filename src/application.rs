@@ -11,8 +11,14 @@ const SIDE_WIDTH: i32 = 300;
 const CELL_WIDTH: i32 = 10;
 const CELL_EDGES: i32 = 45;
 
-fn calc_index(x: i32, y: i32) -> usize {
+fn calc_logical_index(x: i32, y: i32) -> usize {
     return ((x * CELL_EDGES * 2) + y) as usize;
+}
+
+fn calc_physical_index(xpos: f64, ypos: f64) -> usize {
+    let x = xpos / CELL_WIDTH as f64;
+    let y = ypos / CELL_WIDTH as f64;
+    return calc_logical_index(x as i32, y as i32);
 }
 
 pub struct Grid {
@@ -24,7 +30,7 @@ impl Grid {
         let mut c = [0; (CELL_EDGES * CELL_EDGES * 4) as usize];
         for y in 0..(CELL_EDGES * 2) {
             for x in 0..(CELL_EDGES * 2) {
-                let index = calc_index(x, y);
+                let index = calc_logical_index(x, y);
                 if x < CELL_EDGES && y < CELL_EDGES {
                     c[index] = 1;
                 } else if x >= CELL_EDGES && y < CELL_EDGES {
@@ -38,22 +44,33 @@ impl Grid {
         }
         Grid { cells: c }
     }
+
+    pub fn check_collision(&mut self, x: f64, y: f64, cannon_id: i8) -> bool {
+        let index = calc_physical_index(x, y);
+        if self.cells[index] != cannon_id {
+            self.cells[index] = cannon_id;
+            return true;
+        }
+        return false;
+    }
 }
 
 pub struct Bullet {
+    pub cannon_id: i8,
     color: [f32; 4],
-    position: [f64; 2],
+    pub position: [f64; 2],
     angle: f64,
     speed: f64,
-    is_alive: bool,
+    pub is_alive: bool,
 }
 
 impl Bullet {
     const RADIUS: f64 = 10.0;
     const SPEED: f64 = 1.0;
 
-    pub fn new(color: [f32; 4], x: f64, y: f64, angle: f64) -> Bullet {
+    pub fn new(cannon_id: i8, color: [f32; 4], x: f64, y: f64, angle: f64) -> Bullet {
         Bullet {
+            cannon_id: cannon_id,
             color: color,
             position: [x, y],
             angle: angle,
@@ -66,7 +83,7 @@ impl Bullet {
         let x = self.speed * self.angle.deg_to_rad().cos();
         let y = self.speed * self.angle.deg_to_rad().sin();
         self.position = [self.position[0] + x, self.position[1] + y];
-        self.check_collisions(grid_rect);
+        self.check_boundary_collisions(grid_rect);
     }
 
     pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
@@ -79,18 +96,22 @@ impl Bullet {
         graphics::ellipse(self.color, rect, c.transform, gl);
     }
 
-    fn check_collisions(&mut self, grid_rect: [f64; 4]) {
-        if (self.position[0] < grid_rect[0]) || ((self.position[0] + Bullet::RADIUS) > (grid_rect[0] + grid_rect[2])) {
+    fn check_boundary_collisions(&mut self, grid_rect: [f64; 4]) {
+        if (self.position[0] < grid_rect[0])
+            || ((self.position[0] + Bullet::RADIUS) > (grid_rect[0] + grid_rect[2]))
+        {
             self.angle = 180.0 - self.angle;
         }
-        if (self.position[1] < grid_rect[1]) || ((self.position[1] + Bullet::RADIUS) > (grid_rect[1] + grid_rect[3])) {
+        if (self.position[1] < grid_rect[1])
+            || ((self.position[1] + Bullet::RADIUS) > (grid_rect[1] + grid_rect[3]))
+        {
             self.angle = 360.0 - self.angle;
         }
     }
 }
 
 pub struct Cannon {
-    id: i32,
+    id: i8,
     color: [f32; 4],
     x: f64,
     y: f64,
@@ -105,7 +126,7 @@ impl Cannon {
     const SWEEP: f64 = 60.0;
     const RADIUS: i32 = 40;
 
-    pub fn new(id: i32, hex: &str, is_left: bool, is_top: bool) -> Cannon {
+    pub fn new(id: i8, hex: &str, is_left: bool, is_top: bool) -> Cannon {
         let mut h = 2 * BORDER_SIZE + SIDE_WIDTH;
         if is_left {
             h += Cannon::RADIUS * 3 / 4;
@@ -181,7 +202,7 @@ impl Cannon {
     }
 
     pub fn shoot(&mut self) -> Bullet {
-        Bullet::new(self.color, self.x, self.y, self.current_angle_deg)
+        Bullet::new(self.id, self.color, self.x, self.y, self.current_angle_deg)
     }
 }
 
@@ -271,7 +292,7 @@ impl App {
                         CELL_WIDTH as f64,
                         CELL_WIDTH as f64,
                     ];
-                    let color = match self.grid.cells[calc_index(i, j)] {
+                    let color = match self.grid.cells[calc_logical_index(i, j)] {
                         1 => graphics::color::hex("FF0000"),
                         2 => graphics::color::hex("00FF00"),
                         3 => graphics::color::hex("0000FF"),
@@ -311,6 +332,13 @@ impl App {
         }
         for bullet in &mut self.bullets {
             bullet.step(self.field_rect);
+            if self.grid.check_collision(
+                bullet.position[0] - self.field_rect[0],
+                bullet.position[1] - self.field_rect[1],
+                bullet.cannon_id,
+            ) {
+                bullet.is_alive = false;
+            }
         }
         self.bullets.retain(|b| b.is_alive);
     }
@@ -336,7 +364,7 @@ impl App {
         }
     }
 
-    fn fire_cannon(&mut self, cannon_id: i32) {
+    fn fire_cannon(&mut self, cannon_id: i8) {
         for cannon in &mut self.cannons {
             if cannon.id == cannon_id {
                 let bullet = cannon.shoot();
