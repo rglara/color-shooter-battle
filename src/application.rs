@@ -6,28 +6,70 @@ mod cannon;
 mod colors;
 mod common;
 mod grid;
+mod plinko;
+
+use bullet::Bullet;
+use cannon::Cannon;
+use grid::Grid;
+use plinko::Plinko;
 
 pub struct App {
     gl: GlGraphics,
-    grid: grid::Grid,
-    cannons: [cannon::Cannon; 4],
-    bullets: Vec<bullet::Bullet>,
+    grid: Grid,
+    cannons: [Cannon; 4],
+    bullets: Vec<Bullet>,
     field_rect: [f64; 4],
+    plinkos: [Plinko; 4],
 }
 
 impl App {
     pub fn new(g: GlGraphics) -> App {
         App {
             gl: g,
-            grid: grid::Grid::new(),
+            grid: Grid::new(),
             cannons: [
-                cannon::Cannon::new(1, colors::PLAYER1_CANNON, true, true),
-                cannon::Cannon::new(2, colors::PLAYER2_CANNON, false, true),
-                cannon::Cannon::new(3, colors::PLAYER3_CANNON, true, false),
-                cannon::Cannon::new(4, colors::PLAYER4_CANNON, false, false),
+                Cannon::new(1, colors::PLAYER1_CANNON, true, true),
+                Cannon::new(2, colors::PLAYER2_CANNON, false, true),
+                Cannon::new(3, colors::PLAYER3_CANNON, true, false),
+                Cannon::new(4, colors::PLAYER4_CANNON, false, false),
             ],
             bullets: Vec::new(),
             field_rect: [0.0, 0.0, 10.0, 10.0],
+            plinkos: [
+                Plinko::new(
+                    1,
+                    colors::PLAYER1_CANNON,
+                    [common::BORDER_SIZE as f64, common::BORDER_SIZE as f64],
+                ),
+                Plinko::new(
+                    2,
+                    colors::PLAYER2_CANNON,
+                    [
+                        (common::BORDER_SIZE * 3
+                            + (common::CELL_EDGES * common::CELL_WIDTH * 2)
+                            + common::SIDE_WIDTH) as f64,
+                        common::BORDER_SIZE as f64,
+                    ],
+                ),
+                Plinko::new(
+                    3,
+                    colors::PLAYER3_CANNON,
+                    [
+                        common::BORDER_SIZE as f64,
+                        (common::BORDER_SIZE + (common::CELL_EDGES * common::CELL_WIDTH)) as f64,
+                    ],
+                ),
+                Plinko::new(
+                    4,
+                    colors::PLAYER4_CANNON,
+                    [
+                        (common::BORDER_SIZE * 3
+                            + (common::CELL_EDGES * common::CELL_WIDTH * 2)
+                            + common::SIDE_WIDTH) as f64,
+                        (common::BORDER_SIZE + (common::CELL_EDGES * common::CELL_WIDTH)) as f64,
+                    ],
+                ),
+            ],
         }
     }
 
@@ -146,6 +188,9 @@ impl App {
             for bullet in &mut self.bullets {
                 bullet.draw(&c, gl);
             }
+            for plinko in &mut self.plinkos {
+                plinko.draw(&c, gl);
+            }
         });
     }
 
@@ -164,6 +209,9 @@ impl App {
             }
         }
         self.bullets.retain(|b| b.is_alive);
+        for plinko in &mut self.plinkos {
+            plinko.update();
+        }
     }
 
     pub fn handle_button(&mut self, button: &Button) {
