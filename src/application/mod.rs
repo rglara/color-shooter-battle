@@ -2,9 +2,7 @@ use graphics::{Radians, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::{Button, Key, RenderArgs, UpdateArgs};
 
-const COLOR_BACKGROUND: [f32; 4] = [0.0, 0.0, 0.0, 1.0]; // black
-const COLOR_FRAME: [f32; 4] = [0.2, 0.2, 0.2, 1.0]; // gray
-const COLOR_GRID: [f32; 4] = [0.1, 0.1, 0.1, 1.0]; // dark gray
+mod colors;
 
 const BORDER_SIZE: i32 = 20;
 const SIDE_WIDTH: i32 = 300;
@@ -220,10 +218,10 @@ impl App {
             gl: g,
             grid: Grid::new(),
             cannons: [
-                Cannon::new(1, "990000", true, true),
-                Cannon::new(2, "38761D", false, true),
-                Cannon::new(3, "45818E", true, false),
-                Cannon::new(4, "BF9000", false, false),
+                Cannon::new(1, colors::PLAYER1_CANNON, true, true),
+                Cannon::new(2, colors::PLAYER2_CANNON, false, true),
+                Cannon::new(3, colors::PLAYER3_CANNON, true, false),
+                Cannon::new(4, colors::PLAYER4_CANNON, false, false),
             ],
             bullets: Vec::new(),
             field_rect: [0.0, 0.0, 10.0, 10.0],
@@ -248,7 +246,7 @@ impl App {
                 height: i32,
             ) -> i32 {
                 let rect = [x as f64, 0.0, BORDER_SIZE as f64, height as f64];
-                graphics::rectangle(COLOR_FRAME, rect, c.transform, gl);
+                graphics::rectangle(colors::COLOR_FRAME, rect, c.transform, gl);
                 return x + BORDER_SIZE;
             }
 
@@ -259,12 +257,12 @@ impl App {
                 width: i32,
             ) -> i32 {
                 let rect = [0.0, y as f64, width as f64, BORDER_SIZE as f64];
-                graphics::rectangle(COLOR_FRAME, rect, c.transform, gl);
+                graphics::rectangle(colors::COLOR_FRAME, rect, c.transform, gl);
                 return y + BORDER_SIZE;
             }
 
             // Clear the screen.
-            graphics::clear(COLOR_BACKGROUND, gl);
+            graphics::clear(colors::COLOR_BACKGROUND, gl);
 
             let window_width = App::get_width();
             let window_height = App::get_height();
@@ -293,24 +291,24 @@ impl App {
                         CELL_WIDTH as f64,
                     ];
                     let color = match self.grid.cells[calc_logical_index(i, j)] {
-                        1 => graphics::color::hex("FF0000"),
-                        2 => graphics::color::hex("00FF00"),
-                        3 => graphics::color::hex("0000FF"),
-                        4 => graphics::color::hex("FFFF00"),
-                        _ => COLOR_BACKGROUND,
+                        1 => graphics::color::hex(colors::PLAYER1_FIELD),
+                        2 => graphics::color::hex(colors::PLAYER2_FIELD),
+                        3 => graphics::color::hex(colors::PLAYER3_FIELD),
+                        4 => graphics::color::hex(colors::PLAYER4_FIELD),
+                        _ => colors::COLOR_BACKGROUND,
                     };
                     graphics::rectangle(color, rect, c.transform, gl);
                     current_y = y;
                 }
                 let xline = [x as f64, grid_top as f64, x as f64, grid_bottom as f64];
-                graphics::line(COLOR_GRID, 1.0, xline, c.transform, gl);
+                graphics::line(colors::COLOR_GRID, 1.0, xline, c.transform, gl);
                 current_x = x;
             }
 
             for y in 0..(CELL_EDGES * 2) {
                 let axis = (grid_top + (y * CELL_WIDTH)) as f64;
                 let yline = [grid_left as f64, axis, grid_right as f64, axis];
-                graphics::line(COLOR_GRID, 1.0, yline, c.transform, gl);
+                graphics::line(colors::COLOR_GRID, 1.0, yline, c.transform, gl);
             }
 
             current_x = draw_full_column(&c, gl, current_x, window_height);
