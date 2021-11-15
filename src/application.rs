@@ -194,7 +194,7 @@ impl App {
         });
     }
 
-    pub fn update(&mut self, _args: &UpdateArgs) {
+    pub fn update(&mut self, args: &UpdateArgs) {
         for cannon in &mut self.cannons {
             cannon.turn();
         }
@@ -210,7 +210,7 @@ impl App {
         }
         self.bullets.retain(|b| b.is_alive);
         for plinko in &mut self.plinkos {
-            plinko.update();
+            plinko.update(args.dt);
         }
     }
 
