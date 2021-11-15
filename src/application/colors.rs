@@ -1,6 +1,9 @@
-pub const COLOR_BACKGROUND: &str = "000000";
-pub const COLOR_FRAME: &str = "222222";
-pub const COLOR_GRID: &str = "111111";
+pub const BACKGROUND: &str = "000000";
+pub const FRAME: &str = "222222";
+pub const GRID: &str = "111111";
+
+pub const FIRE_WELL: &str = "FF00FF";
+pub const MULTI_WELL: &str = "00FFFF";
 
 pub const PLAYER1_FIELD: &str = "990000";
 pub const PLAYER1_CANNON: &str = "FF0000";

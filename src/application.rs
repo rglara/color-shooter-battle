@@ -92,7 +92,7 @@ impl App {
             ) -> i32 {
                 let rect = [x as f64, 0.0, common::BORDER_SIZE as f64, height as f64];
                 graphics::rectangle(
-                    graphics::color::hex(colors::COLOR_FRAME),
+                    graphics::color::hex(colors::FRAME),
                     rect,
                     c.transform,
                     gl,
@@ -108,7 +108,7 @@ impl App {
             ) -> i32 {
                 let rect = [0.0, y as f64, width as f64, common::BORDER_SIZE as f64];
                 graphics::rectangle(
-                    graphics::color::hex(colors::COLOR_FRAME),
+                    graphics::color::hex(colors::FRAME),
                     rect,
                     c.transform,
                     gl,
@@ -117,7 +117,7 @@ impl App {
             }
 
             // Clear the screen.
-            graphics::clear(graphics::color::hex(colors::COLOR_BACKGROUND), gl);
+            graphics::clear(graphics::color::hex(colors::BACKGROUND), gl);
 
             let window_width = App::get_width();
             let window_height = App::get_height();
@@ -150,14 +150,14 @@ impl App {
                         2 => graphics::color::hex(colors::PLAYER2_FIELD),
                         3 => graphics::color::hex(colors::PLAYER3_FIELD),
                         4 => graphics::color::hex(colors::PLAYER4_FIELD),
-                        _ => graphics::color::hex(colors::COLOR_BACKGROUND),
+                        _ => graphics::color::hex(colors::BACKGROUND),
                     };
                     graphics::rectangle(color, rect, c.transform, gl);
                     current_y = y;
                 }
                 let xline = [x as f64, grid_top as f64, x as f64, grid_bottom as f64];
                 graphics::line(
-                    graphics::color::hex(colors::COLOR_GRID),
+                    graphics::color::hex(colors::GRID),
                     1.0,
                     xline,
                     c.transform,
@@ -170,7 +170,7 @@ impl App {
                 let axis = (grid_top + (y * common::CELL_WIDTH)) as f64;
                 let yline = [grid_left as f64, axis, grid_right as f64, axis];
                 graphics::line(
-                    graphics::color::hex(colors::COLOR_GRID),
+                    graphics::color::hex(colors::GRID),
                     1.0,
                     yline,
                     c.transform,
