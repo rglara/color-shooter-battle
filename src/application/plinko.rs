@@ -6,36 +6,39 @@ struct Puck {
     angle: f64,
     speed: f64,
     color: [f32; 4],
+    is_alive: bool,
 }
 
 impl Puck {
-    const RADIUS: f64 = 36.0;
+    const RADIUS: f64 = 18.0;
     const GRAVITY: f64 = 0.3;
 
     pub fn new_fixed(pos: [f64; 2]) -> Puck {
         Puck {
-            position: [pos[0] - Puck::RADIUS / 2.0, pos[1] - Puck::RADIUS / 2.0],
+            position: pos,
             angle: 0.0,
             speed: -1.0,
             color: graphics::color::hex(super::colors::FRAME),
+            is_alive: true,
         }
     }
 
     pub fn new_active(pos: [f64; 2], color: [f32; 4]) -> Puck {
         Puck {
-            position: [pos[0] - Puck::RADIUS / 2.0, pos[1] - Puck::RADIUS / 2.0],
+            position: pos,
             angle: 90.0,
             speed: 0.1,
             color: color,
+            is_alive: true,
         }
     }
 
     pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
         let rect = [
-            self.position[0],
-            self.position[1],
-            Puck::RADIUS,
-            Puck::RADIUS,
+            self.position[0] - Puck::RADIUS,
+            self.position[1] - Puck::RADIUS,
+            Puck::RADIUS * 2.0,
+            Puck::RADIUS * 2.0,
         ];
         graphics::ellipse(self.color, rect, c.transform, gl);
     }
@@ -62,7 +65,7 @@ pub struct Plinko {
 impl Plinko {
     const BOUNDARY_WIDTH: f64 = 10.0;
     const WELL_WIDTH: f64 = 20.0;
-    const NEW_PUCK_TIME: f64 = 10.0;
+    const NEW_PUCK_TIME: f64 = 20.0;
     const WELL_DEPTH: f64 = 20.0;
 
     pub fn new(id: i32, color: &str, position: [f64; 2]) -> Plinko {
@@ -83,7 +86,7 @@ impl Plinko {
             for h in 0..max {
                 pins.push(Puck::new_fixed([
                     position[0] + Plinko::BOUNDARY_WIDTH + (HSPACE * h as f64) + offset,
-                    position[1] + (VSPACE * v as f64) - Puck::RADIUS / 2.0,
+                    position[1] + (VSPACE * v as f64) - Puck::RADIUS,
                 ]));
             }
         }
@@ -101,7 +104,36 @@ impl Plinko {
         }
     }
 
-    fn check_collisions(&mut self) {}
+    fn intersects(puck: &Puck, rect: [f64; 4]) -> bool {
+        let center_rect_x = rect[0] + (rect[2] / 2.0);
+        let center_rect_y = rect[1] + (rect[3] / 2.0);
+        let distance_x = (puck.position[0] - center_rect_x).abs();
+        let distance_y = (puck.position[1] - center_rect_y).abs();
+        if distance_x > ((rect[2] / 2.0) + Puck::RADIUS) {
+            return false;
+        }
+        if distance_y > ((rect[3] / 2.0) + Puck::RADIUS) {
+            return false;
+        }
+        if distance_x <= (rect[2] / 2.0) {
+            return true;
+        }
+        if distance_y <= (rect[3] / 2.0) {
+            return true;
+        }
+        let x_portion = distance_x - (rect[2] / 2.0);
+        let y_portion = distance_y - (rect[3] / 2.0);
+        let center_dist_squared = (x_portion * x_portion) + (y_portion * y_portion);
+        return center_dist_squared <= (Puck::RADIUS * Puck::RADIUS);
+        // distance.x = abs(circ.x - rect.x);
+        // distance.y = abs(circ.y - rect.y);
+        // if (distance.x > (rect.width/2 + circ.r)) { return false; }
+        // if (distance.y > (rect.height/2 + circ.r)) { return false; }
+        // if (distance.x <= (rect.width/2)) { return true; }
+        // if (distance.y <= (rect.height/2)) { return true; }
+        // cDist_sq = (distance.x - rect.width/2)^2 + (distance.y - rect.height/2)^2;
+        // return (cDist_sq <= (circ.r^2));
+    }
 
     pub fn update(&mut self, delta_time: f64) {
         self.time += delta_time;
@@ -109,7 +141,7 @@ impl Plinko {
             self.pucks.push(Puck::new_active(
                 [
                     self.position[0] + (super::common::SIDE_WIDTH / 2) as f64,
-                    self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 4.0),
+                    self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 2.0),
                 ],
                 self.color,
             ));
@@ -120,38 +152,53 @@ impl Plinko {
         self.check_collisions();
     }
 
-    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
-        let xmin = self.position[0];
-        let xmax = xmin + super::common::SIDE_WIDTH as f64;
-        let ymin = self.position[1];
-        let ymax = ymin + (super::common::CELL_WIDTH * super::common::CELL_EDGES) as f64;
+    fn get_min_max(&mut self) -> [f64; 4] {
+        return [
+            self.position[0],
+            self.position[0] + super::common::SIDE_WIDTH as f64,
+            self.position[1],
+            self.position[1] + (super::common::CELL_WIDTH * super::common::CELL_EDGES) as f64,
+        ];
+    }
 
+    fn get_fire_rect(&mut self) -> [f64; 4] {
+        let [xmin, _xmax, _ymin, ymax] = self.get_min_max();
+        return [
+            xmin,
+            ymax - Plinko::WELL_DEPTH / 2.0 - Plinko::BOUNDARY_WIDTH,
+            self.well_x - xmin,
+            Plinko::WELL_DEPTH / 2.0,
+        ];
+    }
+
+    fn get_multi_rect(&mut self) -> [f64; 4] {
+        let [_xmin, xmax, _ymin, ymax] = self.get_min_max();
+        return [
+            self.well_x,
+            ymax - Plinko::WELL_DEPTH / 2.0 - Plinko::BOUNDARY_WIDTH,
+            xmax - self.well_x,
+            Plinko::WELL_DEPTH / 2.0,
+        ];
+    }
+
+    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
         for pin in &mut self.pins {
             pin.draw(&c, gl);
         }
 
         graphics::rectangle(
             graphics::color::hex(super::colors::FIRE_WELL),
-            [
-                xmin,
-                ymax - Plinko::WELL_DEPTH / 2.0 - Plinko::BOUNDARY_WIDTH,
-                self.well_x - xmin,
-                Plinko::WELL_DEPTH / 2.0,
-            ],
+            self.get_fire_rect(),
             c.transform,
             gl,
         );
         graphics::rectangle(
             graphics::color::hex(super::colors::MULTI_WELL),
-            [
-                self.well_x,
-                ymax - Plinko::WELL_DEPTH / 2.0 - Plinko::BOUNDARY_WIDTH,
-                xmax - self.well_x,
-                Plinko::WELL_DEPTH / 2.0,
-            ],
+            self.get_multi_rect(),
             c.transform,
             gl,
         );
+        let [xmin, xmax, ymin, ymax] = self.get_min_max();
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [
@@ -202,5 +249,21 @@ impl Plinko {
         for puck in &mut self.pucks {
             puck.draw(&c, gl);
         }
+    }
+
+    fn check_collisions(&mut self) {
+        // pucks with pins
+
+        // pucks with wells
+        let multi_rect = self.get_multi_rect();
+        let fire_rect = self.get_fire_rect();
+        for puck in &mut self.pucks {
+            if Plinko::intersects(puck, multi_rect) {
+                puck.is_alive = false;
+            } else if Plinko::intersects(puck, fire_rect) {
+                puck.is_alive = false;
+            }
+        }
+        self.pucks.retain(|p| p.is_alive);
     }
 }
