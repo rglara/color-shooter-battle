@@ -91,12 +91,7 @@ impl App {
                 height: i32,
             ) -> i32 {
                 let rect = [x as f64, 0.0, common::BORDER_SIZE as f64, height as f64];
-                graphics::rectangle(
-                    graphics::color::hex(colors::FRAME),
-                    rect,
-                    c.transform,
-                    gl,
-                );
+                graphics::rectangle(graphics::color::hex(colors::FRAME), rect, c.transform, gl);
                 return x + common::BORDER_SIZE;
             }
 
@@ -107,12 +102,7 @@ impl App {
                 width: i32,
             ) -> i32 {
                 let rect = [0.0, y as f64, width as f64, common::BORDER_SIZE as f64];
-                graphics::rectangle(
-                    graphics::color::hex(colors::FRAME),
-                    rect,
-                    c.transform,
-                    gl,
-                );
+                graphics::rectangle(graphics::color::hex(colors::FRAME), rect, c.transform, gl);
                 return y + common::BORDER_SIZE;
             }
 
@@ -209,10 +199,15 @@ impl App {
             }
         }
         self.bullets.retain(|b| b.is_alive);
+        // let func = |id: i32| self.update_callback(id);
         for plinko in &mut self.plinkos {
-            plinko.update(args.dt);
+            plinko.update(args.dt /*, &func*/);
         }
     }
+
+    // fn update_callback(&mut self, id: i32) {
+    //     // do something
+    // }
 
     pub fn handle_button(&mut self, button: &Button) {
         match button {

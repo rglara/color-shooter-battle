@@ -72,7 +72,7 @@ impl Cannon {
         }
     }
 
-    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
+    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
         let base = [
             self.x - Cannon::RADIUS as f64,
             self.y - Cannon::RADIUS as f64,
@@ -84,7 +84,7 @@ impl Cannon {
             0.0,
             0.0,
             (3 * Cannon::RADIUS / 2) as f64,
-            (2* Cannon::RADIUS / 3) as f64,
+            (2 * Cannon::RADIUS / 3) as f64,
         ];
         let barrel_transform = c
             .transform
@@ -94,7 +94,7 @@ impl Cannon {
         graphics::rectangle(self.color, barrel, barrel_transform, gl);
     }
 
-    pub fn shoot(&mut self) -> super::bullet::Bullet {
+    pub fn shoot(&self) -> super::bullet::Bullet {
         super::bullet::Bullet::new(self.id, self.color, self.x, self.y, self.current_angle_deg)
     }
 }

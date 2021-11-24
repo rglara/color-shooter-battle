@@ -1,5 +1,6 @@
 use graphics::Radians;
 use opengl_graphics::GlGraphics;
+use rand::Rng;
 
 struct Puck {
     position: [f64; 2],
@@ -33,7 +34,7 @@ impl Puck {
         }
     }
 
-    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
+    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
         let rect = [
             self.position[0] - Puck::RADIUS,
             self.position[1] - Puck::RADIUS,
@@ -50,6 +51,29 @@ impl Puck {
             self.position = [self.position[0] + x, self.position[1] + y];
         }
     }
+
+    pub fn collides_with(&self, rect: [f64; 4]) -> bool {
+        let center_rect_x = rect[0] + (rect[2] / 2.0);
+        let center_rect_y = rect[1] + (rect[3] / 2.0);
+        let distance_x = (self.position[0] - center_rect_x).abs();
+        let distance_y = (self.position[1] - center_rect_y).abs();
+        if distance_x > ((rect[2] / 2.0) + Puck::RADIUS) {
+            return false;
+        }
+        if distance_y > ((rect[3] / 2.0) + Puck::RADIUS) {
+            return false;
+        }
+        if distance_x <= (rect[2] / 2.0) {
+            return true;
+        }
+        if distance_y <= (rect[3] / 2.0) {
+            return true;
+        }
+        let x_portion = distance_x - (rect[2] / 2.0);
+        let y_portion = distance_y - (rect[3] / 2.0);
+        let center_dist_squared = (x_portion * x_portion) + (y_portion * y_portion);
+        return center_dist_squared <= (Puck::RADIUS * Puck::RADIUS);
+    }
 }
 
 pub struct Plinko {
@@ -60,6 +84,7 @@ pub struct Plinko {
     pucks: Vec<Puck>,
     time: f64,
     well_x: f64,
+    shot_count: i32,
 }
 
 impl Plinko {
@@ -101,46 +126,22 @@ impl Plinko {
             well_x: position[0]
                 + Plinko::BOUNDARY_WIDTH
                 + (2.0 * super::common::SIDE_WIDTH as f64 / 3.0),
+            shot_count: 1,
         }
     }
 
-    fn intersects(puck: &Puck, rect: [f64; 4]) -> bool {
-        let center_rect_x = rect[0] + (rect[2] / 2.0);
-        let center_rect_y = rect[1] + (rect[3] / 2.0);
-        let distance_x = (puck.position[0] - center_rect_x).abs();
-        let distance_y = (puck.position[1] - center_rect_y).abs();
-        if distance_x > ((rect[2] / 2.0) + Puck::RADIUS) {
-            return false;
-        }
-        if distance_y > ((rect[3] / 2.0) + Puck::RADIUS) {
-            return false;
-        }
-        if distance_x <= (rect[2] / 2.0) {
-            return true;
-        }
-        if distance_y <= (rect[3] / 2.0) {
-            return true;
-        }
-        let x_portion = distance_x - (rect[2] / 2.0);
-        let y_portion = distance_y - (rect[3] / 2.0);
-        let center_dist_squared = (x_portion * x_portion) + (y_portion * y_portion);
-        return center_dist_squared <= (Puck::RADIUS * Puck::RADIUS);
-        // distance.x = abs(circ.x - rect.x);
-        // distance.y = abs(circ.y - rect.y);
-        // if (distance.x > (rect.width/2 + circ.r)) { return false; }
-        // if (distance.y > (rect.height/2 + circ.r)) { return false; }
-        // if (distance.x <= (rect.width/2)) { return true; }
-        // if (distance.y <= (rect.height/2)) { return true; }
-        // cDist_sq = (distance.x - rect.width/2)^2 + (distance.y - rect.height/2)^2;
-        // return (cDist_sq <= (circ.r^2));
-    }
-
-    pub fn update(&mut self, delta_time: f64) {
+    pub fn update(&mut self, delta_time: f64 /*, event_callback: &'a dyn FnMut(i32)*/) {
         self.time += delta_time;
         if (self.time / Plinko::NEW_PUCK_TIME) as usize >= self.pucks.len() {
+            let mut rng = rand::thread_rng();
+            let random_x = rng.gen_range(
+                0.0..(super::common::SIDE_WIDTH as f64
+                    - (Puck::RADIUS * 2.0)
+                    - (Plinko::BOUNDARY_WIDTH * 2.0)),
+            );
             self.pucks.push(Puck::new_active(
                 [
-                    self.position[0] + (super::common::SIDE_WIDTH / 2) as f64,
+                    self.position[0] + Puck::RADIUS + Plinko::BOUNDARY_WIDTH + random_x,
                     self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 2.0),
                 ],
                 self.color,
@@ -149,10 +150,10 @@ impl Plinko {
         for puck in &mut self.pucks {
             puck.step();
         }
-        self.check_collisions();
+        self.check_collisions(/*event_callback*/);
     }
 
-    fn get_min_max(&mut self) -> [f64; 4] {
+    fn get_min_max(&self) -> [f64; 4] {
         return [
             self.position[0],
             self.position[0] + super::common::SIDE_WIDTH as f64,
@@ -161,7 +162,7 @@ impl Plinko {
         ];
     }
 
-    fn get_fire_rect(&mut self) -> [f64; 4] {
+    fn get_fire_rect(&self) -> [f64; 4] {
         let [xmin, _xmax, _ymin, ymax] = self.get_min_max();
         return [
             xmin,
@@ -171,7 +172,7 @@ impl Plinko {
         ];
     }
 
-    fn get_multi_rect(&mut self) -> [f64; 4] {
+    fn get_multi_rect(&self) -> [f64; 4] {
         let [_xmin, xmax, _ymin, ymax] = self.get_min_max();
         return [
             self.well_x,
@@ -181,8 +182,8 @@ impl Plinko {
         ];
     }
 
-    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
-        for pin in &mut self.pins {
+    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
+        for pin in &self.pins {
             pin.draw(&c, gl);
         }
 
@@ -246,21 +247,24 @@ impl Plinko {
             gl,
         );
 
-        for puck in &mut self.pucks {
+        for puck in &self.pucks {
             puck.draw(&c, gl);
         }
     }
 
-    fn check_collisions(&mut self) {
+    fn check_collisions(&mut self /*, event_callback: &'a dyn FnMut(i32)*/) {
         // pucks with pins
 
         // pucks with wells
         let multi_rect = self.get_multi_rect();
         let fire_rect = self.get_fire_rect();
         for puck in &mut self.pucks {
-            if Plinko::intersects(puck, multi_rect) {
+            if puck.collides_with(multi_rect) {
+                self.shot_count += 1;
                 puck.is_alive = false;
-            } else if Plinko::intersects(puck, fire_rect) {
+            } else if puck.collides_with(fire_rect) {
+                // event_callback(self.id);
+                self.shot_count = 1;
                 puck.is_alive = false;
             }
         }

@@ -32,7 +32,7 @@ impl Bullet {
         self.check_boundary_collisions(grid_rect);
     }
 
-    pub fn draw(&mut self, c: &graphics::Context, gl: &mut GlGraphics) {
+    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
         let rect = [
             self.position[0],
             self.position[1],
