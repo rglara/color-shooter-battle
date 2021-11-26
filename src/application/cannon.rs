@@ -12,6 +12,7 @@ pub struct Cannon {
     current_barrel_move: f64,
     loaded_shots: i32,
     shot_delay: i32,
+    pub is_alive: bool,
 }
 
 impl Cannon {
@@ -63,48 +64,55 @@ impl Cannon {
             current_barrel_move: Cannon::SPEED,
             loaded_shots: 0,
             shot_delay: Cannon::FRAME_DELAY,
+            is_alive: true,
         }
     }
 
     pub fn turn(&mut self) {
-        self.current_angle_deg += self.current_barrel_move;
-        if self.current_angle_deg >= self.max_angle_deg {
-            self.current_angle_deg = self.max_angle_deg;
-            self.current_barrel_move = -Cannon::SPEED;
-        } else if self.current_angle_deg <= self.min_angle_deg {
-            self.current_angle_deg = self.min_angle_deg;
-            self.current_barrel_move = Cannon::SPEED;
+        if self.is_alive {
+            self.current_angle_deg += self.current_barrel_move;
+            if self.current_angle_deg >= self.max_angle_deg {
+                self.current_angle_deg = self.max_angle_deg;
+                self.current_barrel_move = -Cannon::SPEED;
+            } else if self.current_angle_deg <= self.min_angle_deg {
+                self.current_angle_deg = self.min_angle_deg;
+                self.current_barrel_move = Cannon::SPEED;
+            }
         }
     }
 
     pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
-        let base = [
-            self.x - Cannon::RADIUS as f64,
-            self.y - Cannon::RADIUS as f64,
-            (Cannon::RADIUS * 2) as f64,
-            (Cannon::RADIUS * 2) as f64,
-        ];
-        graphics::ellipse(self.color, base, c.transform, gl);
-        let barrel = [
-            0.0,
-            0.0,
-            (3 * Cannon::RADIUS / 2) as f64,
-            (2 * Cannon::RADIUS / 3) as f64,
-        ];
-        let barrel_transform = c
-            .transform
-            .trans(self.x, self.y)
-            .rot_deg(self.current_angle_deg)
-            .trans(0.0, (Cannon::RADIUS / -4) as f64);
-        graphics::rectangle(self.color, barrel, barrel_transform, gl);
+        if self.is_alive {
+            let base = [
+                self.x - Cannon::RADIUS as f64,
+                self.y - Cannon::RADIUS as f64,
+                (Cannon::RADIUS * 2) as f64,
+                (Cannon::RADIUS * 2) as f64,
+            ];
+            graphics::ellipse(self.color, base, c.transform, gl);
+            let barrel = [
+                0.0,
+                0.0,
+                (3 * Cannon::RADIUS / 2) as f64,
+                (2 * Cannon::RADIUS / 3) as f64,
+            ];
+            let barrel_transform = c
+                .transform
+                .trans(self.x, self.y)
+                .rot_deg(self.current_angle_deg)
+                .trans(0.0, (Cannon::RADIUS / -4) as f64);
+            graphics::rectangle(self.color, barrel, barrel_transform, gl);
+        }
     }
 
     pub fn load(&mut self, num_shots: i32) {
-        self.loaded_shots += num_shots;
+        if self.is_alive {
+            self.loaded_shots += num_shots;
+        }
     }
 
     pub fn shoot(&mut self) -> Option<super::bullet::Bullet> {
-        if self.loaded_shots > 0 {
+        if self.is_alive && self.loaded_shots > 0 {
             if self.shot_delay > 0 {
                 self.shot_delay -= 1;
             } else {
@@ -120,5 +128,19 @@ impl Cannon {
             }
         }
         None
+    }
+
+    pub fn check_collision(&mut self, bullet: &mut super::bullet::Bullet) {
+        if self.is_alive && self.id != bullet.cannon_id {
+            let a = (self.x - bullet.position[0]).abs();
+            let b = (self.y - bullet.position[1]).abs();
+            let a_squared = a * a;
+            let b_squared = b * b;
+            let distance = (a_squared + b_squared).sqrt();
+            if distance < (Cannon::RADIUS as f64 + super::bullet::Bullet::RADIUS) {
+                self.is_alive = false;
+                bullet.is_alive = false;
+            }
+        }
     }
 }

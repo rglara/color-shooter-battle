@@ -96,6 +96,7 @@ pub struct Plinko {
     time: f64,
     well_x: f64,
     shot_count: i32,
+    pub is_alive: bool,
 }
 
 impl Plinko {
@@ -138,6 +139,7 @@ impl Plinko {
                 + Plinko::BOUNDARY_WIDTH
                 + (2.0 * super::common::SIDE_WIDTH as f64 / 3.0),
             shot_count: 1,
+            is_alive: true,
         }
     }
 
@@ -145,26 +147,28 @@ impl Plinko {
     where
         F: FnMut(PlinkoEvent),
     {
-        self.time += delta_time;
-        if (self.time / Plinko::NEW_PUCK_TIME) as usize >= self.pucks.len() {
-            let mut rng = rand::thread_rng();
-            let random_x = rng.gen_range(
-                0.0..(super::common::SIDE_WIDTH as f64
-                    - (Puck::RADIUS * 2.0)
-                    - (Plinko::BOUNDARY_WIDTH * 2.0)),
-            );
-            self.pucks.push(Puck::new_active(
-                [
-                    self.position[0] + Puck::RADIUS + Plinko::BOUNDARY_WIDTH + random_x,
-                    self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 2.0),
-                ],
-                self.color,
-            ));
+        if self.is_alive {
+            self.time += delta_time;
+            if (self.time / Plinko::NEW_PUCK_TIME) as usize >= self.pucks.len() {
+                let mut rng = rand::thread_rng();
+                let random_x = rng.gen_range(
+                    0.0..(super::common::SIDE_WIDTH as f64
+                        - (Puck::RADIUS * 2.0)
+                        - (Plinko::BOUNDARY_WIDTH * 2.0)),
+                );
+                self.pucks.push(Puck::new_active(
+                    [
+                        self.position[0] + Puck::RADIUS + Plinko::BOUNDARY_WIDTH + random_x,
+                        self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 2.0),
+                    ],
+                    self.color,
+                ));
+            }
+            for puck in &mut self.pucks {
+                puck.step();
+            }
+            self.check_collisions(event_callback);
         }
-        for puck in &mut self.pucks {
-            puck.step();
-        }
-        self.check_collisions(event_callback);
     }
 
     fn get_min_max(&self) -> [f64; 4] {

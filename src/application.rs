@@ -195,6 +195,12 @@ impl App {
             ) {
                 bullet.is_alive = false;
             }
+            for cannon in &mut self.cannons {
+                cannon.check_collision(bullet);
+                if !cannon.is_alive {
+                    self.plinkos[(cannon.id - 1) as usize].is_alive = false;
+                }
+            }
         }
         self.bullets.retain(|b| b.is_alive);
 
