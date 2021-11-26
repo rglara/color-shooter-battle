@@ -104,6 +104,7 @@ impl Plinko {
     const WELL_WIDTH: f64 = 20.0;
     const NEW_PUCK_TIME: f64 = 20.0;
     const WELL_DEPTH: f64 = 20.0;
+    const MAX_PUCKS: usize = 10;
 
     pub fn new(id: i8, color: &str, position: [f64; 2]) -> Plinko {
         // stationary pucks are "pins" to bounce off of
@@ -149,7 +150,8 @@ impl Plinko {
     {
         if self.is_alive {
             self.time += delta_time;
-            if (self.time / Plinko::NEW_PUCK_TIME) as usize >= self.pucks.len() {
+            let num_pucks = self.pucks.len();
+            if (self.time / Plinko::NEW_PUCK_TIME) as usize >= num_pucks && num_pucks < Plinko::MAX_PUCKS {
                 let mut rng = rand::thread_rng();
                 let random_x = rng.gen_range(
                     0.0..(super::common::SIDE_WIDTH as f64
