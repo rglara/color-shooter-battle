@@ -11,7 +11,7 @@ mod plinko;
 use bullet::Bullet;
 use cannon::Cannon;
 use grid::Grid;
-use plinko::Plinko;
+use plinko::{Plinko, PlinkoEvent};
 
 pub struct App {
     gl: GlGraphics,
@@ -199,15 +199,24 @@ impl App {
             }
         }
         self.bullets.retain(|b| b.is_alive);
-        // let func = |id: i32| self.update_callback(id);
+
+        let mut updates: Vec<PlinkoEvent> = Vec::new();
         for plinko in &mut self.plinkos {
-            plinko.update(args.dt /*, &func*/);
+            let func = |event: PlinkoEvent| {
+                updates.push(event);
+            };
+            plinko.update(args.dt, func);
+        }
+        for update in updates {
+            self.update_callback(update);
         }
     }
 
-    // fn update_callback(&mut self, id: i32) {
-    //     // do something
-    // }
+    fn update_callback(&mut self, event: PlinkoEvent) {
+        for _i in 0..event.num_shots {
+            self.fire_cannon(event.id);
+        }
+    }
 
     pub fn handle_button(&mut self, button: &Button) {
         match button {
@@ -231,7 +240,7 @@ impl App {
     }
 
     fn fire_cannon(&mut self, cannon_id: i8) {
-        for cannon in &mut self.cannons {
+        for cannon in &self.cannons {
             if cannon.id == cannon_id {
                 let bullet = cannon.shoot();
                 self.bullets.push(bullet);

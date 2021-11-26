@@ -12,7 +12,7 @@ struct Puck {
 
 impl Puck {
     const RADIUS: f64 = 18.0;
-    const GRAVITY: f64 = 0.3;
+    const GRAVITY: f64 = 0.6;
 
     pub fn new_fixed(pos: [f64; 2]) -> Puck {
         Puck {
@@ -76,8 +76,19 @@ impl Puck {
     }
 }
 
+pub struct PlinkoEvent {
+    pub id: i8,
+    pub num_shots: i32,
+}
+
+impl PlinkoEvent {
+    pub fn new(id: i8, num_shots: i32) -> PlinkoEvent {
+        PlinkoEvent { id, num_shots }
+    }
+}
+
 pub struct Plinko {
-    id: i32,
+    id: i8,
     position: [f64; 2],
     color: [f32; 4],
     pins: Vec<Puck>,
@@ -93,7 +104,7 @@ impl Plinko {
     const NEW_PUCK_TIME: f64 = 20.0;
     const WELL_DEPTH: f64 = 20.0;
 
-    pub fn new(id: i32, color: &str, position: [f64; 2]) -> Plinko {
+    pub fn new(id: i8, color: &str, position: [f64; 2]) -> Plinko {
         // stationary pucks are "pins" to bounce off of
         let mut pins = Vec::new();
         const HORZ: i32 = 3;
@@ -130,7 +141,10 @@ impl Plinko {
         }
     }
 
-    pub fn update(&mut self, delta_time: f64 /*, event_callback: &'a dyn FnMut(i32)*/) {
+    pub fn update<F>(&mut self, delta_time: f64, event_callback: F)
+    where
+        F: FnMut(PlinkoEvent),
+    {
         self.time += delta_time;
         if (self.time / Plinko::NEW_PUCK_TIME) as usize >= self.pucks.len() {
             let mut rng = rand::thread_rng();
@@ -150,7 +164,7 @@ impl Plinko {
         for puck in &mut self.pucks {
             puck.step();
         }
-        self.check_collisions(/*event_callback*/);
+        self.check_collisions(event_callback);
     }
 
     fn get_min_max(&self) -> [f64; 4] {
@@ -252,7 +266,10 @@ impl Plinko {
         }
     }
 
-    fn check_collisions(&mut self /*, event_callback: &'a dyn FnMut(i32)*/) {
+    fn check_collisions<F>(&mut self, mut event_callback: F)
+    where
+        F: FnMut(PlinkoEvent),
+    {
         // pucks with pins
 
         // pucks with wells
@@ -260,10 +277,10 @@ impl Plinko {
         let fire_rect = self.get_fire_rect();
         for puck in &mut self.pucks {
             if puck.collides_with(multi_rect) {
-                self.shot_count += 1;
+                self.shot_count *= 2;
                 puck.is_alive = false;
             } else if puck.collides_with(fire_rect) {
-                // event_callback(self.id);
+                event_callback(PlinkoEvent::new(self.id, self.shot_count));
                 self.shot_count = 1;
                 puck.is_alive = false;
             }
