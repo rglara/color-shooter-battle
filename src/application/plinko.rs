@@ -71,8 +71,8 @@ impl Puck {
         }
         let x_portion = distance_x - (rect[2] / 2.0);
         let y_portion = distance_y - (rect[3] / 2.0);
-        let center_dist_squared = (x_portion * x_portion) + (y_portion * y_portion);
-        return center_dist_squared <= (Puck::RADIUS * Puck::RADIUS);
+        let distance = x_portion.hypot(y_portion);
+        return distance <= Puck::RADIUS;
     }
 }
 

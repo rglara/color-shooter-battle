@@ -134,9 +134,7 @@ impl Cannon {
         if self.is_alive && self.id != bullet.cannon_id {
             let a = (self.x - bullet.position[0]).abs();
             let b = (self.y - bullet.position[1]).abs();
-            let a_squared = a * a;
-            let b_squared = b * b;
-            let distance = (a_squared + b_squared).sqrt();
+            let distance = a.hypot(b);
             if distance < (Cannon::RADIUS as f64 + super::bullet::Bullet::RADIUS) {
                 self.is_alive = false;
                 bullet.is_alive = false;
