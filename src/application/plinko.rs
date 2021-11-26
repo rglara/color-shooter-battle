@@ -101,7 +101,8 @@ pub struct Plinko {
 
 impl Plinko {
     const BOUNDARY_WIDTH: f64 = 10.0;
-    const WELL_WIDTH: f64 = 20.0;
+    const WELL_DIVIDER_WIDTH: f64 = 20.0;
+    const MIN_WELL_WIDTH: f64 = 100.0;
     const NEW_PUCK_TIME: f64 = 20.0;
     const WELL_DEPTH: f64 = 20.0;
     const MAX_PUCKS: usize = 10;
@@ -136,9 +137,9 @@ impl Plinko {
             pins: pins,
             pucks: Vec::new(),
             time: 0.0,
-            well_x: position[0]
-                + Plinko::BOUNDARY_WIDTH
-                + (2.0 * super::common::SIDE_WIDTH as f64 / 3.0),
+            well_x: position[0] + super::common::SIDE_WIDTH as f64
+                - Plinko::BOUNDARY_WIDTH
+                - Plinko::MIN_WELL_WIDTH,
             shot_count: 1,
             is_alive: true,
         }
@@ -150,8 +151,12 @@ impl Plinko {
     {
         if self.is_alive {
             self.time += delta_time;
+
+            // add pucks gradually over time
             let num_pucks = self.pucks.len();
-            if (self.time / Plinko::NEW_PUCK_TIME) as usize >= num_pucks && num_pucks < Plinko::MAX_PUCKS {
+            if (self.time / Plinko::NEW_PUCK_TIME) as usize >= num_pucks
+                && num_pucks < Plinko::MAX_PUCKS
+            {
                 let mut rng = rand::thread_rng();
                 let random_x = rng.gen_range(
                     0.0..(super::common::SIDE_WIDTH as f64
@@ -166,6 +171,13 @@ impl Plinko {
                     self.color,
                 ));
             }
+
+            // gradually slide well divider to multiply more
+            let new_well_x = self.well_x - self.time / 100000.0;
+            let min_well_x = self.position[0] + Plinko::BOUNDARY_WIDTH + Plinko::MIN_WELL_WIDTH;
+            self.well_x = new_well_x.max(min_well_x);
+
+            // move pucks
             for puck in &mut self.pucks {
                 puck.step();
             }
@@ -223,9 +235,9 @@ impl Plinko {
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [
-                self.well_x - Plinko::WELL_WIDTH / 2.0,
+                self.well_x - Plinko::WELL_DIVIDER_WIDTH / 2.0,
                 ymax - Plinko::WELL_DEPTH - Plinko::BOUNDARY_WIDTH,
-                Plinko::WELL_WIDTH,
+                Plinko::WELL_DIVIDER_WIDTH,
                 Plinko::WELL_DEPTH,
             ],
             c.transform,
