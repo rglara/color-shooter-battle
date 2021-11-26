@@ -185,9 +185,7 @@ impl App {
     }
 
     pub fn update(&mut self, args: &UpdateArgs) {
-        for cannon in &mut self.cannons {
-            cannon.turn();
-        }
+        // move bullets
         for bullet in &mut self.bullets {
             bullet.step(self.field_rect);
             if self.grid.check_collision(
@@ -200,6 +198,7 @@ impl App {
         }
         self.bullets.retain(|b| b.is_alive);
 
+        // check plinkos for updates
         let mut updates: Vec<PlinkoEvent> = Vec::new();
         for plinko in &mut self.plinkos {
             let func = |event: PlinkoEvent| {
@@ -210,28 +209,34 @@ impl App {
         for update in updates {
             self.update_callback(update);
         }
+
+        // rotate cannons and fire next round of bullets
+        for cannon in &mut self.cannons {
+            if let Some(b) = cannon.shoot() {
+                self.bullets.push(b);
+            }
+            cannon.turn();
+        }
     }
 
     fn update_callback(&mut self, event: PlinkoEvent) {
-        for _i in 0..event.num_shots {
-            self.fire_cannon(event.id);
-        }
+        self.load_cannon(event.id, event.num_shots);
     }
 
     pub fn handle_button(&mut self, button: &Button) {
         match button {
             Button::Keyboard(key) => match key {
                 Key::D1 => {
-                    self.fire_cannon(1);
+                    self.load_cannon(1, 16);
                 }
                 Key::D2 => {
-                    self.fire_cannon(2);
+                    self.load_cannon(2, 16);
                 }
                 Key::D3 => {
-                    self.fire_cannon(3);
+                    self.load_cannon(3, 16);
                 }
                 Key::D4 => {
-                    self.fire_cannon(4);
+                    self.load_cannon(4, 16);
                 }
                 _ => {}
             },
@@ -239,12 +244,7 @@ impl App {
         }
     }
 
-    fn fire_cannon(&mut self, cannon_id: i8) {
-        for cannon in &self.cannons {
-            if cannon.id == cannon_id {
-                let bullet = cannon.shoot();
-                self.bullets.push(bullet);
-            }
-        }
+    fn load_cannon(&mut self, cannon_id: i8, num_shots: i32) {
+        self.cannons[(cannon_id - 1) as usize].load(num_shots);
     }
 }

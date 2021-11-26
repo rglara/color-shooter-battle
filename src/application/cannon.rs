@@ -10,12 +10,15 @@ pub struct Cannon {
     max_angle_deg: f64,
     current_angle_deg: f64,
     current_barrel_move: f64,
+    loaded_shots: i32,
+    shot_delay: i32,
 }
 
 impl Cannon {
     const SPEED: f64 = 0.4;
     const SWEEP: f64 = 60.0;
     const RADIUS: i32 = 20;
+    const FRAME_DELAY: i32 = 8;
 
     pub fn new(id: i8, hex: &str, is_left: bool, is_top: bool) -> Cannon {
         let mut h = 2 * super::common::BORDER_SIZE + super::common::SIDE_WIDTH;
@@ -58,6 +61,8 @@ impl Cannon {
             max_angle_deg: max,
             current_angle_deg: min,
             current_barrel_move: Cannon::SPEED,
+            loaded_shots: 0,
+            shot_delay: Cannon::FRAME_DELAY,
         }
     }
 
@@ -94,7 +99,26 @@ impl Cannon {
         graphics::rectangle(self.color, barrel, barrel_transform, gl);
     }
 
-    pub fn shoot(&self) -> super::bullet::Bullet {
-        super::bullet::Bullet::new(self.id, self.color, self.x, self.y, self.current_angle_deg)
+    pub fn load(&mut self, num_shots: i32) {
+        self.loaded_shots += num_shots;
+    }
+
+    pub fn shoot(&mut self) -> Option<super::bullet::Bullet> {
+        if self.loaded_shots > 0 {
+            if self.shot_delay > 0 {
+                self.shot_delay -= 1;
+            } else {
+                self.shot_delay = Cannon::FRAME_DELAY;
+                self.loaded_shots -= 1;
+                return Some(super::bullet::Bullet::new(
+                    self.id,
+                    self.color,
+                    self.x,
+                    self.y,
+                    self.current_angle_deg,
+                ));
+            }
+        }
+        None
     }
 }
