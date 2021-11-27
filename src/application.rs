@@ -1,4 +1,4 @@
-use opengl_graphics::GlGraphics;
+use opengl_graphics::{GlGraphics, GlyphCache, TextureSettings};
 use piston::{Button, Key, RenderArgs, UpdateArgs};
 
 mod bullet;
@@ -20,11 +20,14 @@ pub struct App {
     bullets: Vec<Bullet>,
     field_rect: [f64; 4],
     plinkos: [Plinko; 4],
+    glyphs: GlyphCache<'static>,
 }
 
 impl App {
     pub fn new(g: GlGraphics) -> App {
         App {
+            glyphs: GlyphCache::new("./assets/FiraSans-Regular.ttf", (), TextureSettings::new())
+                .expect("Unable to load font"),
             gl: g,
             grid: Grid::new(),
             cannons: [
@@ -179,7 +182,7 @@ impl App {
                 bullet.draw(&c, gl);
             }
             for plinko in &mut self.plinkos {
-                plinko.draw(&c, gl);
+                plinko.draw(&c, gl, &mut self.glyphs);
             }
         });
     }

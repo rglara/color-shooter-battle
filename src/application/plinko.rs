@@ -1,5 +1,5 @@
-use graphics::Radians;
-use opengl_graphics::GlGraphics;
+use graphics::{Radians, Text, Transformed};
+use opengl_graphics::{GlGraphics, GlyphCache};
 use rand::Rng;
 
 struct Puck {
@@ -12,7 +12,7 @@ struct Puck {
 
 impl Puck {
     const RADIUS: f64 = 18.0;
-    const GRAVITY: f64 = 0.6;
+    const GRAVITY: f64 = 0.3;
 
     pub fn new_fixed(pos: [f64; 2]) -> Puck {
         Puck {
@@ -106,6 +106,7 @@ impl Plinko {
     const NEW_PUCK_TIME: f64 = 20.0;
     const WELL_DEPTH: f64 = 20.0;
     const MAX_PUCKS: usize = 10;
+    const SCORE_SIZE: u32 = 42;
 
     pub fn new(id: i8, color: &str, position: [f64; 2]) -> Plinko {
         // stationary pucks are "pins" to bounce off of
@@ -214,7 +215,21 @@ impl Plinko {
         ];
     }
 
-    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics) {
+    pub fn draw(&self, c: &graphics::Context, gl: &mut GlGraphics, glyphs: &mut GlyphCache) {
+        let text_transform = c.transform.trans(
+            self.position[0] + Plinko::BOUNDARY_WIDTH + Plinko::SCORE_SIZE as f64 * 0.3,
+            self.position[1] + Plinko::BOUNDARY_WIDTH + Plinko::SCORE_SIZE as f64 * 0.9,
+        );
+        Text::new_color(self.color, Plinko::SCORE_SIZE)
+            .draw(
+                &self.shot_count.to_string(),
+                glyphs,
+                &c.draw_state,
+                text_transform,
+                gl,
+            )
+            .expect("Unable to render text");
+
         for pin in &self.pins {
             pin.draw(&c, gl);
         }
