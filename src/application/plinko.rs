@@ -33,10 +33,11 @@ impl Plinko {
     const BOUNDARY_WIDTH: f64 = 10.0;
     const WELL_DIVIDER_WIDTH: f64 = 20.0;
     const MIN_WELL_WIDTH: f64 = 100.0;
-    const NEW_PUCK_TIME: f64 = 20.0;
+    const NEW_PUCK_TIME: f64 = 80.0;
     const WELL_DEPTH: f64 = 20.0;
-    const MAX_PUCKS: usize = 10;
+    const MAX_PUCKS: usize = 6;
     const SCORE_SIZE: u32 = 42;
+    const WELL_WIDTH_INCREMENT: f64 = 0.15;
 
     pub fn new(id: i8, color: &str, position: [f64; 2]) -> Plinko {
         // stationary pucks are "pins" to bounce off of
@@ -99,18 +100,20 @@ impl Plinko {
                         self.position[0] + Puck::RADIUS + Plinko::BOUNDARY_WIDTH + random_x,
                         self.position[1] + Plinko::BOUNDARY_WIDTH + (3.0 * Puck::RADIUS / 2.0),
                     ],
+                    rng.gen_range(10.0..170.0),
                     self.color,
                 ));
             }
 
-            // gradually slide well divider to multiply more
-            let new_well_x = self.well_x - self.time / 100000.0;
-            let min_well_x = self.position[0] + Plinko::BOUNDARY_WIDTH + Plinko::MIN_WELL_WIDTH;
-            self.well_x = new_well_x.max(min_well_x);
-
             // move pucks
+            let [xmin, xmax, ymin, ymax] = self.get_min_max();
             for puck in &mut self.pucks {
-                puck.step();
+                puck.step([
+                    xmin + Plinko::BOUNDARY_WIDTH,
+                    ymin + Plinko::BOUNDARY_WIDTH,
+                    xmax - xmin - Plinko::BOUNDARY_WIDTH * 2.0,
+                    ymax - ymin - Plinko::BOUNDARY_WIDTH * 2.0,
+                ]);
             }
             self.check_collisions(event_callback);
         }
@@ -142,6 +145,16 @@ impl Plinko {
             ymax - Plinko::WELL_DEPTH / 2.0 - Plinko::BOUNDARY_WIDTH,
             xmax - self.well_x,
             Plinko::WELL_DEPTH / 2.0,
+        ];
+    }
+
+    fn get_divider_rect(&self) -> [f64; 4] {
+        let [_xmin, _xmax, _ymin, ymax] = self.get_min_max();
+        return [
+            self.well_x - Plinko::WELL_DIVIDER_WIDTH / 2.0,
+            ymax - Plinko::WELL_DEPTH - Plinko::BOUNDARY_WIDTH,
+            Plinko::WELL_DIVIDER_WIDTH,
+            Plinko::WELL_DEPTH,
         ];
     }
 
@@ -179,22 +192,19 @@ impl Plinko {
         let [xmin, xmax, ymin, ymax] = self.get_min_max();
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
-            [
-                self.well_x - Plinko::WELL_DIVIDER_WIDTH / 2.0,
-                ymax - Plinko::WELL_DEPTH - Plinko::BOUNDARY_WIDTH,
-                Plinko::WELL_DIVIDER_WIDTH,
-                Plinko::WELL_DEPTH,
-            ],
+            self.get_divider_rect(),
             c.transform,
             gl,
         );
 
+        // top
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [xmin, ymin, xmax - xmin, Plinko::BOUNDARY_WIDTH],
             c.transform,
             gl,
         );
+        // right
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [
@@ -206,12 +216,14 @@ impl Plinko {
             c.transform,
             gl,
         );
+        // left
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [xmin, ymin, Plinko::BOUNDARY_WIDTH, ymax - ymin],
             c.transform,
             gl,
         );
+        // bottom
         graphics::rectangle(
             graphics::color::hex(super::colors::FRAME),
             [
@@ -238,9 +250,19 @@ impl Plinko {
         // pucks with wells
         let multi_rect = self.get_multi_rect();
         let fire_rect = self.get_fire_rect();
+        // let divider_rect = self.get_divider_rect();
         for puck in &mut self.pucks {
+            /*if puck.collides_with(divider_rect) {
+                puck.bounce(divider_rect);
+            } else*/
             if puck.collides_with(multi_rect) {
                 self.shot_count *= 2;
+
+                // gradually make multiplier well bigger
+                let new_well_x = self.well_x - Plinko::WELL_WIDTH_INCREMENT;
+                let min_well_x = self.position[0] + Plinko::BOUNDARY_WIDTH + Plinko::MIN_WELL_WIDTH;
+                self.well_x = new_well_x.max(min_well_x);
+
                 puck.is_alive = false;
             } else if puck.collides_with(fire_rect) {
                 event_callback(PlinkoEvent::new(self.id, self.shot_count));

@@ -1,5 +1,6 @@
 use graphics::Transformed;
 use opengl_graphics::GlGraphics;
+use rand::Rng;
 
 pub struct Cannon {
     pub id: i8,
@@ -16,10 +17,10 @@ pub struct Cannon {
 }
 
 impl Cannon {
-    const SPEED: f64 = 0.4;
+    const SPEED: f64 = 0.3;
     const SWEEP: f64 = 60.0;
     const RADIUS: i32 = 20;
-    const FRAME_DELAY: i32 = 8;
+    const FRAME_DELAY: i32 = 4;
 
     pub fn new(id: i8, hex: &str, is_left: bool, is_top: bool) -> Cannon {
         let mut h = 2 * super::common::BORDER_SIZE + super::common::SIDE_WIDTH;
@@ -53,6 +54,7 @@ impl Cannon {
         let min = neutral - Cannon::SWEEP;
         let max = neutral + Cannon::SWEEP;
 
+        let mut rng = rand::thread_rng();
         Cannon {
             id: id,
             color: graphics::color::hex(hex),
@@ -60,7 +62,7 @@ impl Cannon {
             y: v as f64,
             min_angle_deg: min,
             max_angle_deg: max,
-            current_angle_deg: min,
+            current_angle_deg: rng.gen_range(min..max),
             current_barrel_move: Cannon::SPEED,
             loaded_shots: 0,
             shot_delay: Cannon::FRAME_DELAY,
