@@ -106,6 +106,7 @@ impl Plinko {
             }
 
             // move pucks
+            self.check_collisions(event_callback);
             let [xmin, xmax, ymin, ymax] = self.get_min_max();
             for puck in &mut self.pucks {
                 puck.step([
@@ -115,7 +116,6 @@ impl Plinko {
                     ymax - ymin - Plinko::BOUNDARY_WIDTH * 2.0,
                 ]);
             }
-            self.check_collisions(event_callback);
         }
     }
 
@@ -250,12 +250,11 @@ impl Plinko {
         // pucks with wells
         let multi_rect = self.get_multi_rect();
         let fire_rect = self.get_fire_rect();
-        // let divider_rect = self.get_divider_rect();
+        let divider_rect = self.get_divider_rect();
         for puck in &mut self.pucks {
-            /*if puck.collides_with(divider_rect) {
+            if puck.collides_with(divider_rect) {
                 puck.bounce(divider_rect);
-            } else*/
-            if puck.collides_with(multi_rect) {
+            } else if puck.collides_with(multi_rect) {
                 self.shot_count *= 2;
 
                 // gradually make multiplier well bigger

@@ -49,6 +49,7 @@ impl Bullet {
     fn check_boundary_collisions(&mut self, grid_rect: [f64; 4]) {
         if self.is_alive {
             self.angle = super::common::check_circle_boundary_collisions(
+                true,
                 grid_rect,
                 self.position,
                 Bullet::RADIUS,

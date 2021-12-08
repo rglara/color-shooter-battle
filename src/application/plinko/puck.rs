@@ -11,8 +11,8 @@ pub struct Puck {
 
 impl Puck {
     pub const RADIUS: f64 = 18.0;
-    const GRAVITY: f64 = 0.3;
-    const INITIAL_SPEED: f64 = 0.8;
+    // const GRAVITY: f64 = 0.2;
+    const INITIAL_SPEED: f64 = 0.6;
 
     pub fn new_fixed(pos: [f64; 2]) -> Puck {
         Puck {
@@ -46,16 +46,17 @@ impl Puck {
 
     pub fn step(&mut self, boundaries: [f64; 4]) {
         if self.speed > 0.0 {
-            let x = self.speed * self.angle.deg_to_rad().cos();
-            let y = self.speed * self.angle.deg_to_rad().sin() + Puck::GRAVITY;
-            self.position = [self.position[0] + x, self.position[1] + y];
             self.check_boundary_collisions(boundaries);
+            let x = self.speed * self.angle.deg_to_rad().cos();
+            let y = self.speed * self.angle.deg_to_rad().sin();
+            self.position = [self.position[0] + x, self.position[1] + y];
         }
     }
 
     fn check_boundary_collisions(&mut self, boundaries: [f64; 4]) {
         if self.is_alive {
             self.angle = super::super::common::check_circle_boundary_collisions(
+                true,
                 boundaries,
                 self.position,
                 Puck::RADIUS,
@@ -87,5 +88,13 @@ impl Puck {
         return distance <= Puck::RADIUS;
     }
 
-    // pub fn bounce(&mut self, _rect: [f64; 4]) {}
+    pub fn bounce(&mut self, rect: [f64; 4]) {
+        self.angle = super::super::common::check_circle_boundary_collisions(
+            false,
+            rect,
+            self.position,
+            Puck::RADIUS,
+            self.angle,
+        );
+    }
 }
